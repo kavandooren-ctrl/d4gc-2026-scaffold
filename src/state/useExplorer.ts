@@ -3,7 +3,7 @@ import type { SatelliteRecord, FilterState, DatasetStatus } from "../data/types"
 import { EMPTY_FILTERS } from "../data/types";
 import { loadSatelliteData, getDisplayAltitude } from "../data/loadSatellites";
 
-const DATA_URL = "data/satellites.csv";
+const DATA_URL = "data/satellites.xlsx";
 
 export interface AltitudeRange {
   min: number;

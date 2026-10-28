@@ -42,7 +42,7 @@ export function DetailsPanel({ satellite }: DetailsPanelProps) {
         <span className="details-dot" style={{ background: color }} />
         <div>
           <h3 className="details-name">{satellite.name}</h3>
-          <span className="details-id">NORAD ID: {satellite.noradId}</span>
+          <span className="details-id">NORAD {satellite.noradId}</span>
         </div>
       </div>
 
@@ -80,6 +80,18 @@ export function DetailsPanel({ satellite }: DetailsPanelProps) {
         <div className="detail-cell">
           <span className="detail-label">Period</span>
           <span className="detail-value">{formatValue(satellite.periodMinutes, "min")}</span>
+        </div>
+        <div className="detail-cell">
+          <span className="detail-label">Launch Year</span>
+          <span className="detail-value">
+            {satellite.launchYear !== null ? String(satellite.launchYear) : "—"}
+          </span>
+        </div>
+        <div className="detail-cell">
+          <span className="detail-label">Designator</span>
+          <span className="detail-value">
+            {satellite.internationalDesignator ?? "—"}
+          </span>
         </div>
       </div>
 

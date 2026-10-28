@@ -1,4 +1,4 @@
-export type OrbitRegime = "LEO" | "MEO" | "GEO" | "HEO" | "Unknown";
+export type OrbitRegime = "LEO" | "MEO" | "GEO-like" | "Unknown";
 
 export interface ObservationRow {
   timestamp: string;
@@ -18,6 +18,8 @@ export interface SatelliteRecord {
   apogeeKm: number | null;
   perigeeKm: number | null;
   meanAltitudeKm: number | null;
+  launchYear: number | null;
+  internationalDesignator: string | null;
   observations: ObservationRow[];
 }
 
@@ -47,15 +49,13 @@ export const EMPTY_FILTERS: FilterState = {
 export const REGIME_COLORS: Record<OrbitRegime, string> = {
   LEO: "#4ade80",
   MEO: "#60a5fa",
-  GEO: "#fbbf24",
-  HEO: "#fb923c",
+  "GEO-like": "#fbbf24",
   Unknown: "#94a3b8",
 };
 
 export const REGIME_LABELS: Record<OrbitRegime, string> = {
   LEO: "LEO",
   MEO: "MEO",
-  GEO: "GEO",
-  HEO: "High Earth",
+  "GEO-like": "GEO-like",
   Unknown: "Unknown",
 };

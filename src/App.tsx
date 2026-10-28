@@ -50,8 +50,8 @@ function App() {
             <h2 className="error-title">Dataset Unavailable</h2>
             <p className="error-message">{status.error}</p>
             <p className="error-hint">
-              The app expects a file named <code>satellites.csv</code> in the
-              <code> public/data/</code> folder. Once added, reload the page.
+              The app expects a file named <code>satellites.xlsx</code> in the
+              <code> public/data/</code> folder.
             </p>
           </div>
         </div>

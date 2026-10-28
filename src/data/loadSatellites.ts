@@ -1,27 +1,31 @@
-import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import type {
   SatelliteRecord,
   ObservationRow,
   OrbitRegime,
 } from "./types";
 
-type RawRow = Record<string, string | undefined>;
-
-function parseNumber(value: string | undefined): number | null {
-  if (value === undefined || value === null) return null;
-  const trimmed = value.trim();
+function parseNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean") return null;
+  const trimmed = String(value).trim();
   if (trimmed === "") return null;
   const num = Number(trimmed);
   return Number.isNaN(num) ? null : num;
 }
 
-function classifyRegime(value: string | undefined): OrbitRegime {
-  if (!value) return "Unknown";
-  const trimmed = value.trim().toUpperCase();
-  if (trimmed === "LEO" || trimmed === "MEO" || trimmed === "GEO" || trimmed === "HEO") {
-    return trimmed;
+function parseString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function classifyRegime(value: unknown): OrbitRegime {
+  const trimmed = parseString(value).toUpperCase();
+  if (trimmed === "LEO" || trimmed === "MEO" || trimmed === "GEO-LIKE") {
+    return trimmed as OrbitRegime;
   }
-  if (trimmed.includes("HIGH")) return "HEO";
+  if (trimmed === "GEO") return "GEO-like";
   return "Unknown";
 }
 
@@ -41,27 +45,44 @@ function isValidLon(v: number | null): boolean {
   return v !== null && v >= -180 && v <= 180;
 }
 
-function normalizeRows(rows: RawRow[]): SatelliteRecord[] {
+function getField(row: Record<string, unknown>, key: string): unknown {
+  return row[key] ?? null;
+}
+
+function buildSatellites(
+  snapshots: Record<string, unknown>[],
+  catalog: Record<string, unknown>[],
+): SatelliteRecord[] {
+  const catalogMeanAlt = new Map<string, number | null>();
+  for (const row of catalog) {
+    const id = parseString(getField(row, "norad_catalog_number"));
+    if (!id) continue;
+    catalogMeanAlt.set(id, parseNumber(getField(row, "mean_altitude_km")));
+  }
+
   const byId = new Map<string, SatelliteRecord>();
 
-  for (const raw of rows) {
-    const noradId = (raw.norad_id ?? "").trim();
+  for (const row of snapshots) {
+    const noradId = parseString(getField(row, "norad_catalog_number"));
     if (!noradId) continue;
 
-    const name = (raw.satellite_name ?? "").trim() || "Unknown";
-    const group = (raw.satellite_group ?? "").trim() || "Unknown";
-    const regime = classifyRegime(raw.orbit_regime);
-    const inclinationDeg = parseNumber(raw.inclination_deg);
-    const eccentricity = parseNumber(raw.eccentricity);
-    const periodMinutes = parseNumber(raw.period_minutes);
-    const apogeeKm = parseNumber(raw.apogee_km);
-    const perigeeKm = parseNumber(raw.perigee_km);
-    const meanAltitudeKm = parseNumber(raw.mean_altitude_km);
+    const name = parseString(getField(row, "name")) || "Unknown";
+    const group = parseString(getField(row, "group")) || "Unknown";
+    const regime = classifyRegime(getField(row, "orbit_regime"));
+    const inclinationDeg = parseNumber(getField(row, "inclination_degrees"));
+    const eccentricity = parseNumber(getField(row, "eccentricity"));
+    const periodMinutes = parseNumber(getField(row, "period_minutes"));
+    const apogeeKm = parseNumber(getField(row, "apogee_km"));
+    const perigeeKm = parseNumber(getField(row, "perigee_km"));
+    const launchYear = parseNumber(getField(row, "launch_year"));
+    const internationalDesignator =
+      parseString(getField(row, "international_designator")) || null;
+    const meanAltitudeKm = catalogMeanAlt.get(noradId) ?? null;
 
-    const timestamp = (raw.timestamp ?? "").trim();
-    const latitude = parseNumber(raw.latitude);
-    const longitude = parseNumber(raw.longitude);
-    const altitudeKm = parseNumber(raw.altitude_km);
+    const timestamp = parseString(getField(row, "timestamp_utc"));
+    const latitude = parseNumber(getField(row, "simulated_latitude_deg"));
+    const longitude = parseNumber(getField(row, "simulated_longitude_deg"));
+    const altitudeKm = parseNumber(getField(row, "simulated_altitude_km"));
 
     const obs: ObservationRow = {
       timestamp,
@@ -79,32 +100,26 @@ function normalizeRows(rows: RawRow[]): SatelliteRecord[] {
         orbitRegime: regime,
         inclinationDeg: isValidInclination(inclinationDeg) ? inclinationDeg : null,
         eccentricity: isValidEccentricity(eccentricity) ? eccentricity : null,
-        periodMinutes: periodMinutes !== null && periodMinutes > 0 ? periodMinutes : null,
+        periodMinutes:
+          periodMinutes !== null && periodMinutes > 0 ? periodMinutes : null,
         apogeeKm,
         perigeeKm,
         meanAltitudeKm,
+        launchYear:
+          launchYear !== null && launchYear > 1900
+            ? Math.round(launchYear)
+            : null,
+        internationalDesignator,
         observations: [],
       };
       byId.set(noradId, sat);
-    } else {
-      if (sat.name === "Unknown" && name !== "Unknown") sat.name = name;
-      if (sat.group === "Unknown" && group !== "Unknown") sat.group = group;
-      if (sat.orbitRegime === "Unknown" && regime !== "Unknown") sat.orbitRegime = regime;
-      if (sat.inclinationDeg === null && isValidInclination(inclinationDeg)) {
-        sat.inclinationDeg = inclinationDeg;
-      }
-      if (sat.eccentricity === null && isValidEccentricity(eccentricity)) {
-        sat.eccentricity = eccentricity;
-      }
-      if (sat.periodMinutes === null && periodMinutes !== null && periodMinutes > 0) {
-        sat.periodMinutes = periodMinutes;
-      }
-      if (sat.apogeeKm === null) sat.apogeeKm = apogeeKm;
-      if (sat.perigeeKm === null) sat.perigeeKm = perigeeKm;
-      if (sat.meanAltitudeKm === null) sat.meanAltitudeKm = meanAltitudeKm;
     }
 
     sat.observations.push(obs);
+  }
+
+  for (const sat of byId.values()) {
+    sat.observations.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }
 
   return Array.from(byId.values());
@@ -121,31 +136,43 @@ export async function loadSatelliteData(url: string): Promise<LoadResult> {
     if (!response.ok) {
       return {
         satellites: [],
-        error: `Could not load dataset (HTTP ${response.status}). Place satellites.csv in public/data/.`,
+        error: `Could not load dataset (HTTP ${response.status}).`,
       };
     }
-    const text = await response.text();
-    if (!text.trim()) {
-      return {
-        satellites: [],
-        error: "Dataset file is empty. Place satellites.csv in public/data/.",
-      };
+    const arrayBuffer = await response.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, { type: "array" });
+
+    const snapshotSheetName = wb.SheetNames.find((n) =>
+      n.toLowerCase().includes("snapshot"),
+    );
+    const catalogSheetName = wb.SheetNames.find((n) =>
+      n.toLowerCase().includes("catalog"),
+    );
+
+    if (!snapshotSheetName) {
+      return { satellites: [], error: "No snapshot sheet found in the workbook." };
     }
 
-    const parsed = Papa.parse<RawRow>(text, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: false,
-    });
+    const snapshotSheet = wb.Sheets[snapshotSheetName];
+    const catalogSheet = catalogSheetName
+      ? wb.Sheets[catalogSheetName]
+      : null;
 
-    if (parsed.errors.length > 0 && parsed.data.length === 0) {
-      return {
-        satellites: [],
-        error: `CSV parsing failed: ${parsed.errors[0].message}`,
-      };
+    const snapshots = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+      snapshotSheet,
+      { defval: null },
+    );
+    const catalog = catalogSheet
+      ? XLSX.utils.sheet_to_json<Record<string, unknown>>(catalogSheet, {
+          defval: null,
+        })
+      : [];
+
+    if (snapshots.length === 0) {
+      return { satellites: [], error: "Snapshot sheet contains no data rows." };
     }
 
-    const satellites = normalizeRows(parsed.data);
+    const satellites = buildSatellites(snapshots, catalog);
 
     if (satellites.length === 0) {
       return {
@@ -166,13 +193,7 @@ export async function loadSatelliteData(url: string): Promise<LoadResult> {
 
 export function getLatestObservation(sat: SatelliteRecord): ObservationRow | null {
   if (sat.observations.length === 0) return null;
-  let latest = sat.observations[0];
-  for (const obs of sat.observations) {
-    if (obs.timestamp && obs.timestamp > latest.timestamp) {
-      latest = obs;
-    }
-  }
-  return latest;
+  return sat.observations[sat.observations.length - 1];
 }
 
 export function getDisplayAltitude(sat: SatelliteRecord): number | null {

@@ -1,0 +1,73 @@
+# Satellite Explorer
+
+A minimal, visualization-first web app for exploring satellites and orbital characteristics.
+
+## Core experience
+- Interactive 3D Earth/satellite view
+- Altitude and inclination charts
+- Satellite details and selection
+- Altitude/inclination filters
+- Multi-satellite comparison
+
+Optimize for accuracy, clarity, responsiveness, and visual quality. Avoid scope expansion that does not improve exploration.
+
+## Product priorities
+1. Data correctness
+2. Useful visualization
+3. Consistent selection/filtering
+4. Usability and visual polish
+5. Performance/accessibility
+6. Additional features
+
+## Design
+Use a minimal, modern, scientific interface: neutral backgrounds, restrained accents, clear hierarchy, consistent spacing, readable charts, explicit units, useful tooltips, and subtle transitions.
+
+Avoid excessive gradients/glow, glassmorphism, decorative cards, animation, redundant statistics/headings, arbitrary colors, and cramped charts. Keep Earth visually subordinate to the data.
+
+Use one consistent visual identity per satellite across globe, charts, and comparison. Do not rely on color alone. On narrow screens, stack/simplify panels rather than shrinking charts until unreadable.
+
+## Data model and integrity
+Use the project's existing data/API contract; see `data.md` for field semantics and limitations. Normalize source data into a shared internal representation containing only supported fields (e.g. stable ID, name, orbital properties, position/timestamp when available, source/quality metadata).
+
+Missing values are not zero. Do not plot invalid values. Mark unavailable/stale/approximate data clearly. Keep API/data access separate from visualization logic.
+
+## 3D view
+- Clear markers and intuitive camera controls; provide reset.
+- Selection must be easy and synchronized with other views.
+- Render orbital paths only when supported by the available data.
+- Distinguish paths, trails, and historical trajectories.
+- Never infer a precise current position from altitude/inclination alone or present arbitrary circles as real orbits.
+
+## Charts
+Charts are primary features. Each needs a meaningful title, labeled axes, units, honest scales, useful tooltips, selection states, and missing/filtered-data behavior.
+
+Use kilometers for altitude and degrees for inclination unless the existing app specifies otherwise. State what altitude represents. Prefer a histogram for distributions and scatter plots for relationships; avoid chart clutter.
+
+## Shared interaction state
+Maintain one source of truth for:
+- selected satellite
+- compared satellites
+- altitude/inclination filters
+- dataset/loading status
+
+Selection must update globe, charts, and details consistently. Filters must affect all relevant views using the same logic, show active values/counts, reset cleanly, and handle empty/missing results. Define behavior when filtering excludes the selected satellite.
+
+Comparison must use stable IDs, comparable values/units, consistent identities, and sensible limits when needed.
+
+## Quality
+Keep interaction responsive. Avoid redundant renders/requests; separate expensive calculations; reuse normalized/derived data; optimize for realistic dataset size without premature complexity.
+
+Provide accessible control names, keyboard/focus support where practical, readable contrast, reduced-motion support, and a non-3D route to inspect satellites. Independent panel failures should not block the full dashboard.
+
+## Roadmap
+1. Understand existing code and data flow
+2. Establish visual foundation
+3. 3D orbital view
+4. Altitude/inclination charts
+5. Shared filtering/selection
+6. Multi-satellite comparison
+7. Performance, accessibility, error handling, polish
+
+Implement incrementally; each milestone should leave the app working. If data/API limitations block a feature, use the best supported alternative and state the limitation rather than fabricating data.
+
+Operational coding rules and verification workflow are defined in `AGENTS.md`.
